@@ -6,11 +6,7 @@
 
 Migration tools run SQL. `schema-drift` remembers the story.
 
-```
-2024-03-01  a3f9b2  initial schema            8 tables, 42 columns
-2024-03-15  b71cd4  added users.email         + users.email (TEXT)
-2024-04-02  cc82a1  dropped legacy_id         - orders.legacy_id
-```
+![demo](assets/demo.png)
 
 ---
 
@@ -25,7 +21,36 @@ pip install "schema-drift[postgres]"
 
 ---
 
-## Quickstart
+## CLI
+
+```bash
+# Take a snapshot
+schema-drift --db ./mydb.sqlite snapshot "initial schema"
+
+# After an ALTER TABLE...
+schema-drift --db ./mydb.sqlite snapshot "add users.email"
+
+# View history
+schema-drift --db ./mydb.sqlite log
+
+# Show what changed between last two snapshots
+schema-drift --db ./mydb.sqlite diff
+
+# Inspect schema at a given snapshot
+schema-drift --db ./mydb.sqlite rollback 0
+```
+
+Set `SCHEMA_DRIFT_DB` to avoid repeating `--db` every time:
+
+```bash
+export SCHEMA_DRIFT_DB=postgresql://user:pass@localhost/mydb
+schema-drift snapshot "initial schema"
+schema-drift log
+```
+
+---
+
+## Python API
 
 ```python
 from schema_drift import SchemaDrift
@@ -98,7 +123,7 @@ Those tools *apply* migrations. `schema-drift` *observes and records* schema sta
 ## Roadmap
 
 - [x] v0.1 — SQLite + PostgreSQL, snapshot / diff / log / rollback
-- [ ] v0.2 — CLI (`schema-drift log`, `schema-drift diff`)
+- [x] v0.2 — CLI (`schema-drift snapshot/log/diff/rollback`)
 - [ ] v0.3 — GitHub Actions integration (auto-comment schema diffs on PRs)
 - [ ] v1.0 — OpenAPI / JSON Schema support
 
