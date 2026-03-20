@@ -6,8 +6,6 @@
 
 Migration tools run SQL. `schema-drift` remembers the story.
 
-![demo](assets/demo.png)
-
 ```
 2024-03-01  a3f9b2  initial schema            8 tables, 42 columns
 2024-03-15  b71cd4  added users.email         + users.email (TEXT)
@@ -111,7 +109,7 @@ Those tools *apply* migrations. `schema-drift` *observes and records* schema sta
 PRs welcome!
 
 ```bash
-git clone https://github.com/yourname/schema-drift
+git clone https://github.com/woxlo1/schema-drift
 cd schema-drift
 pip install -e ".[dev]"
 pytest

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "schema-drift"
-version = "0.1.0"
+version = "0.2.0"
 description = "Track why your schema changed, not just what changed."
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,9 +24,12 @@ dependencies = []
 postgres = ["psycopg2-binary>=2.9"]
 dev = ["pytest", "pytest-cov", "ruff"]
 
+[project.scripts]
+schema-drift = "schema_drift.cli:main"
+
 [project.urls]
-Homepage = "https://github.com/yourname/schema-drift"
-Repository = "https://github.com/yourname/schema-drift"
+Homepage = "https://github.com/woxlo1/schema-drift"
+Repository = "https://github.com/woxlo1/schema-drift"
 
 [tool.ruff]
 line-length = 100
