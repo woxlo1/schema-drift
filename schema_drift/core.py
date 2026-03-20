@@ -436,3 +436,127 @@ def _extract_v2(self) -> dict:
 
 SchemaDrift._detect_type = _detect_type_v2
 SchemaDrift._extract = _extract_v2
+
+
+# ── MySQL support ──────────────────────────────────────────────────────────────
+
+try:
+    import mysql.connector
+    HAS_MYSQL = True
+except ImportError:
+    HAS_MYSQL = False
+
+
+def _extract_mysql(conn_or_url: Any) -> dict:
+    if not HAS_MYSQL:
+        raise ImportError("mysql-connector-python is required: pip install schema-drift[mysql]")
+
+    close_after = False
+    if isinstance(conn_or_url, str):
+        # Parse mysql://user:pass@host:port/dbname
+        from urllib.parse import urlparse
+        p = urlparse(conn_or_url)
+        conn = mysql.connector.connect(
+            host=p.hostname or "localhost",
+            port=p.port or 3306,
+            user=p.username,
+            password=p.password or "",
+            database=p.path.lstrip("/"),
+        )
+        close_after = True
+    else:
+        conn = conn_or_url
+
+    schema: dict = {}
+    cur = conn.cursor(dictionary=True)
+    db_name = conn.database
+
+    # Tables + columns
+    cur.execute("""
+        SELECT
+            c.TABLE_NAME   AS table_name,
+            c.COLUMN_NAME  AS column_name,
+            c.DATA_TYPE    AS data_type,
+            c.COLUMN_TYPE  AS column_type,
+            c.IS_NULLABLE  AS is_nullable,
+            c.COLUMN_DEFAULT AS column_default,
+            c.COLUMN_KEY   AS column_key,
+            c.ORDINAL_POSITION AS ordinal_position
+        FROM information_schema.COLUMNS c
+        JOIN information_schema.TABLES t
+          ON c.TABLE_NAME = t.TABLE_NAME
+         AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
+        WHERE c.TABLE_SCHEMA = %s
+          AND t.TABLE_TYPE = 'BASE TABLE'
+        ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION
+    """, (db_name,))
+
+    for row in cur.fetchall():
+        table = row["table_name"]
+        if table not in schema:
+            schema[table] = {"columns": {}, "indexes": {}}
+        schema[table]["columns"][row["column_name"]] = {
+            "type": row["data_type"],
+            "column_type": row["column_type"],
+            "nullable": row["is_nullable"] == "YES",
+            "default": row["column_default"],
+            "primary_key": row["column_key"] == "PRI",
+        }
+
+    # Indexes
+    cur.execute("""
+        SELECT
+            TABLE_NAME   AS table_name,
+            INDEX_NAME   AS index_name,
+            NON_UNIQUE   AS non_unique,
+            COLUMN_NAME  AS column_name,
+            SEQ_IN_INDEX AS seq
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = %s
+        ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+    """, (db_name,))
+
+    for row in cur.fetchall():
+        table = row["table_name"]
+        idx = row["index_name"]
+        if table not in schema:
+            continue
+        if idx not in schema[table]["indexes"]:
+            schema[table]["indexes"][idx] = {
+                "columns": [],
+                "unique": row["non_unique"] == 0,
+                "primary": idx == "PRIMARY",
+            }
+        schema[table]["indexes"][idx]["columns"].append(row["column_name"])
+
+    cur.close()
+    if close_after:
+        conn.close()
+
+    return schema
+
+
+# Extend detection and extraction to include MySQL
+
+_detect_type_v2_prev = SchemaDrift._detect_type
+_extract_v2_prev = SchemaDrift._extract
+
+
+def _detect_type_v3(self, conn: Any, hint: str) -> str:
+    if hint != "auto":
+        return hint
+    if isinstance(conn, str) and (conn.startswith("mysql://") or conn.startswith("mysql+")):
+        return "mysql"
+    if HAS_MYSQL and isinstance(conn, mysql.connector.connection.MySQLConnection):
+        return "mysql"
+    return _detect_type_v2_prev(self, conn, hint)
+
+
+def _extract_v3(self) -> dict:
+    if self._db_type == "mysql":
+        return _extract_mysql(self._connection)
+    return _extract_v2_prev(self)
+
+
+SchemaDrift._detect_type = _detect_type_v3
+SchemaDrift._extract = _extract_v3

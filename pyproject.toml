@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "schema-drift"
-version = "1.0.0"
+version = "1.1.0"
 description = "Track why your schema changed, not just what changed."
 readme = "README.md"
 license = { text = "MIT" }
@@ -22,6 +22,7 @@ dependencies = []
 
 [project.optional-dependencies]
 postgres = ["psycopg2-binary>=2.9"]
+mysql = ["mysql-connector-python>=8.0"]
 dev = ["pytest", "pytest-cov", "ruff"]
 
 [project.scripts]

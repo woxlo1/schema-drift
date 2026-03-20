@@ -17,6 +17,9 @@ pip install schema-drift
 
 # PostgreSQL support
 pip install "schema-drift[postgres]"
+
+# MySQL support
+pip install "schema-drift[mysql]"
 ```
 
 ---
@@ -291,3 +294,19 @@ drift.diff()
 | endpoint removed | ❌ breaking |
 | field / property removed | ❌ breaking |
 | parameter type changed | ⚠️ breaking |
+
+---
+
+## MySQL support
+
+```python
+from schema_drift import SchemaDrift
+
+drift = SchemaDrift("mysql://user:pass@localhost/mydb")
+drift.snapshot("initial schema")
+```
+
+Requires:
+```bash
+pip install "schema-drift[mysql]"
+```
