@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.whl
+ 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+ 
+# Schema drift snapshots (optional: remove if you WANT to commit snapshots)
+.schema-drift.json
+ 
+# Env
+.env
+.venv/
+venv/
+ 
+# Editor
+.vscode/
+.idea/
+*.swp
+ 
