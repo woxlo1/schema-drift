@@ -124,7 +124,7 @@ Those tools *apply* migrations. `schema-drift` *observes and records* schema sta
 
 - [x] v0.1 — SQLite + PostgreSQL, snapshot / diff / log / rollback
 - [x] v0.2 — CLI (`schema-drift snapshot/log/diff/rollback`)
-- [ ] v0.3 — GitHub Actions integration (auto-comment schema diffs on PRs)
+- [x] v0.3 — GitHub Actions integration (auto-comment schema diffs on PRs)
 - [ ] v1.0 — OpenAPI / JSON Schema support
 
 ---
@@ -143,3 +143,91 @@ pytest
 ## License
 
 MIT
+
+---
+
+## GitHub Actions
+
+Automatically comment schema diffs on PRs and fail CI on breaking changes.
+
+### Setup
+
+1. Add your DB connection string as a repository secret named `SCHEMA_DRIFT_DB`
+2. Create `.github/workflows/schema-drift.yml`:
+
+```yaml
+name: Schema Drift
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  schema-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install schema-drift
+        run: pip install schema-drift
+
+      - name: Run schema drift check
+        id: drift
+        env:
+          SCHEMA_DRIFT_DB: ${{ secrets.SCHEMA_DRIFT_DB }}
+        run: |
+          python -m schema_drift.ci \
+            --base-ref ${{ github.event.pull_request.base.sha }} \
+            --head-ref ${{ github.event.pull_request.head.sha }} \
+            --output-file drift-report.md
+
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('drift-report.md')) return;
+            const body = fs.readFileSync('drift-report.md', 'utf8');
+            if (!body.trim()) return;
+            const marker = '<!-- schema-drift-report -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      - name: Fail on breaking changes
+        if: steps.drift.outputs.breaking == 'true'
+        run: exit 1
+```
+
+### What it does
+
+| event | action |
+| ----- | ------ |
+| column / table added | ✅ posts comment, CI passes |
+| column / table dropped | ❌ posts comment, **CI fails** |
+| column type changed | ⚠️ posts comment, **CI fails** |
+| no schema change | silent, CI passes |
