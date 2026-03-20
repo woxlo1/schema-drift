@@ -405,3 +405,34 @@ class SchemaDrift:
     def _save(self, history: list) -> None:
         with self._storage.open("w") as f:
             json.dump(history, f, indent=2, default=str)
+
+
+# ── OpenAPI / JSON Schema support (injected at import time) ───────────────────
+# Monkey-patch _detect_type and _extract to support openapi/jsonschema sources.
+
+_original_detect_type = SchemaDrift._detect_type
+_original_extract = SchemaDrift._extract
+
+
+def _detect_type_v2(self, conn: Any, hint: str) -> str:
+    if hint != "auto":
+        return hint
+    from schema_drift.openapi import detect_source_type
+    t = detect_source_type(conn)
+    if t in ("openapi", "jsonschema"):
+        return t
+    return _original_detect_type(self, conn, hint)
+
+
+def _extract_v2(self) -> dict:
+    if self._db_type == "openapi":
+        from schema_drift.openapi import _extract_openapi
+        return _extract_openapi(self._connection)
+    if self._db_type == "jsonschema":
+        from schema_drift.openapi import _extract_json_schema
+        return _extract_json_schema(self._connection)
+    return _original_extract(self)
+
+
+SchemaDrift._detect_type = _detect_type_v2
+SchemaDrift._extract = _extract_v2

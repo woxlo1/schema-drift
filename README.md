@@ -125,7 +125,7 @@ Those tools *apply* migrations. `schema-drift` *observes and records* schema sta
 - [x] v0.1 — SQLite + PostgreSQL, snapshot / diff / log / rollback
 - [x] v0.2 — CLI (`schema-drift snapshot/log/diff/rollback`)
 - [x] v0.3 — GitHub Actions integration (auto-comment schema diffs on PRs)
-- [ ] v1.0 — OpenAPI / JSON Schema support
+- [x] v1.0 — OpenAPI / JSON Schema support
 
 ---
 
@@ -231,3 +231,63 @@ jobs:
 | column / table dropped | ❌ posts comment, **CI fails** |
 | column type changed | ⚠️ posts comment, **CI fails** |
 | no schema change | silent, CI passes |
+
+---
+
+## OpenAPI & JSON Schema support
+
+`schema-drift` also tracks API schema changes — not just databases.
+
+### OpenAPI 3.x
+
+```python
+from schema_drift import SchemaDrift
+
+# From a file
+drift = SchemaDrift("openapi.json")
+drift.snapshot("initial API")
+
+# Or pass a dict directly
+import yaml
+with open("openapi.yaml") as f:
+    spec = yaml.safe_load(f)
+drift = SchemaDrift(spec)
+drift.snapshot("initial API")
+
+# After updating the spec...
+drift.snapshot("add /users/{id}/posts endpoint")
+drift.diff()
+
+# Output:
+# + GET /users/{id}/posts
+# + POST /users/{id}/posts
+```
+
+YAML support requires PyYAML:
+```bash
+pip install pyyaml
+```
+
+### JSON Schema
+
+```python
+drift = SchemaDrift("schema.json")
+drift.snapshot("initial schema")
+
+# After adding a field...
+drift.snapshot("add tags field")
+drift.diff()
+
+# Output:
+# + Product.tags  (array<string>)
+```
+
+### What counts as a breaking change
+
+| change | verdict |
+| ------ | ------- |
+| endpoint added | ✅ safe |
+| field / property added | ✅ safe |
+| endpoint removed | ❌ breaking |
+| field / property removed | ❌ breaking |
+| parameter type changed | ⚠️ breaking |
