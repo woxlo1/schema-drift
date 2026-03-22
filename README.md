@@ -124,6 +124,8 @@ schema-drift web
 
 Open `http://127.0.0.1:8080` to browse snapshot history in your browser.
 
+![web ui](assets/web-ui.png)
+
 See [WEB-UI.md](schema_drift/WEB-UI.md).
 
 ---
