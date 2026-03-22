@@ -330,3 +330,38 @@ Requires:
 ```bash
 pip install "schema-drift[oracle]"
 ```
+
+---
+
+## Watching for changes
+
+Poll the database for schema changes and get notified automatically:
+
+```python
+from schema_drift import SchemaDrift
+
+drift = SchemaDrift("postgresql://user:pass@localhost/mydb")
+
+def on_change(diff):
+    print("Schema changed!", diff)
+
+def on_breaking(diff):
+    print("BREAKING CHANGE!", diff)
+
+# Poll every 60 seconds (default)
+drift.watch(
+    interval=60,
+    on_change=on_change,
+    on_breaking=on_breaking,
+)
+```
+
+Or from the CLI:
+
+```bash
+schema-drift --db ./mydb.sqlite watch
+schema-drift --db ./mydb.sqlite watch --interval 30
+schema-drift --db ./mydb.sqlite watch --no-snapshot
+```
+
+Press Ctrl+C to stop.

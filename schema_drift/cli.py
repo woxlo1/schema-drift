@@ -34,6 +34,24 @@ def _get_db(args_db: str | None) -> str:
     return db
 
 
+def cmd_watch(args: argparse.Namespace) -> None:
+    db = _get_db(args.db)
+    drift = SchemaDrift(db, storage_path=args.storage)
+
+    def on_breaking(diff: dict) -> None:
+        tables = diff.get("tables_removed", [])
+        cols = [f"{c['table']}.{c['column']}" for c in diff.get("columns_removed", [])]
+        items = tables + cols
+        print(f"{RED}breaking change: {', '.join(items)}{RESET}")
+
+    drift.watch(
+        interval=args.interval,
+        on_breaking=on_breaking,
+        auto_snapshot=not args.no_snapshot,
+        message=args.message or "auto-snapshot",
+    )
+
+
 def cmd_snapshot(args: argparse.Namespace) -> None:
     db = _get_db(args.db)
     drift = SchemaDrift(db, storage_path=args.storage)
@@ -87,6 +105,13 @@ examples:
 
     sub = parser.add_subparsers(dest="command", metavar="command")
     sub.required = True
+
+    # watch
+    p_watch = sub.add_parser("watch", help="poll for schema changes")
+    p_watch.add_argument("--interval", type=int, default=60, help="polling interval in seconds (default: 60)")
+    p_watch.add_argument("--no-snapshot", action="store_true", help="don't auto-save snapshots on change")
+    p_watch.add_argument("--message", default="auto-snapshot", help="message prefix for auto-snapshots")
+    p_watch.set_defaults(func=cmd_watch)
 
     # snapshot
     p_snap = sub.add_parser("snapshot", help="capture the current schema")
