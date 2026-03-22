@@ -6,7 +6,6 @@ import time
 import pytest
 from schema_drift import SchemaDrift
 
-
 @pytest.fixture
 def watched_db(tmp_path):
     db = tmp_path / "watch.db"
@@ -19,7 +18,6 @@ def watched_db(tmp_path):
 
 
 def run_watch_thread(drift, **kwargs):
-    """Run drift.watch() in a daemon thread, return the thread."""
     t = threading.Thread(target=drift.watch, kwargs=kwargs, daemon=True)
     t.start()
     return t
@@ -31,18 +29,23 @@ def test_watch_calls_on_change(watched_db):
     drift.snapshot("baseline")
 
     changes = []
-    run_watch_thread(drift, interval=0, on_change=lambda d: changes.append(d), auto_snapshot=False)
-    time.sleep(0.05)
+    ready = threading.Event()
+
+    def on_change(diff):
+        changes.append(diff)
+        ready.set()
+
+    run_watch_thread(drift, interval=0, on_change=on_change, auto_snapshot=False)
+    time.sleep(0.1)
 
     conn = sqlite3.connect(db_path)
     conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
     conn.commit()
     conn.close()
 
-    time.sleep(0.2)
+    ready.wait(timeout=5.0)
     assert len(changes) >= 1
-    added = [c["column"] for c in changes[0]["columns_added"]]
-    assert "email" in added
+    assert "email" in [c["column"] for c in changes[0]["columns_added"]]
 
 
 def test_watch_calls_on_breaking(watched_db):
@@ -51,7 +54,13 @@ def test_watch_calls_on_breaking(watched_db):
     drift.snapshot("baseline")
 
     breaking_diffs = []
-    run_watch_thread(drift, interval=0, on_breaking=lambda d: breaking_diffs.append(d), auto_snapshot=False)
+    ready = threading.Event()
+
+    def on_breaking(diff):
+        breaking_diffs.append(diff)
+        ready.set()
+
+    run_watch_thread(drift, interval=0, on_breaking=on_breaking, auto_snapshot=False)
     time.sleep(0.1)
 
     conn = sqlite3.connect(db_path)
@@ -59,7 +68,7 @@ def test_watch_calls_on_breaking(watched_db):
     conn.commit()
     conn.close()
 
-    time.sleep(0.5)
+    ready.wait(timeout=5.0)
     assert len(breaking_diffs) >= 1
     assert "users" in breaking_diffs[0]["tables_removed"]
 
@@ -69,15 +78,25 @@ def test_watch_auto_snapshot(watched_db):
     drift = SchemaDrift(db_path, storage_path=storage)
     drift.snapshot("baseline")
 
+    ready = threading.Event()
+    original_snapshot = drift.snapshot
+
+    def patched_snapshot(msg=""):
+        result = original_snapshot(msg)
+        if "auto" in msg:
+            ready.set()
+        return result
+
+    drift.snapshot = patched_snapshot
     run_watch_thread(drift, interval=0, auto_snapshot=True)
-    time.sleep(0.05)
+    time.sleep(0.1)
 
     conn = sqlite3.connect(db_path)
     conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
     conn.commit()
     conn.close()
 
-    time.sleep(0.3)
+    ready.wait(timeout=5.0)
     history = json.loads(storage.read_text())
     assert len(history) >= 2
 
@@ -89,7 +108,7 @@ def test_watch_no_change_no_callback(watched_db):
 
     calls = []
     run_watch_thread(drift, interval=0, on_change=lambda d: calls.append(d), auto_snapshot=False)
-    time.sleep(0.2)
+    time.sleep(0.3)
 
     assert len(calls) == 0
 
@@ -101,7 +120,7 @@ def test_watch_baseline_created_if_no_snapshots(watched_db):
     assert not storage.exists()
 
     run_watch_thread(drift, interval=999, auto_snapshot=False)
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     assert storage.exists()
     history = json.loads(storage.read_text())
