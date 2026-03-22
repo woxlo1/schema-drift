@@ -592,3 +592,128 @@ def _extract_v4(self) -> dict:
 
 SchemaDrift._detect_type = _detect_type_v4
 SchemaDrift._extract = _extract_v4
+
+# ── Oracle support ─────────────────────────────────────────────────────────────
+
+try:
+    import oracledb
+    HAS_ORACLE = True
+except ImportError:
+    HAS_ORACLE = False
+
+
+def _extract_oracle(conn_or_url: Any) -> dict:
+    if not HAS_ORACLE:
+        raise ImportError("oracledb is required: pip install schema-drift[oracle]")
+
+    close_after = False
+    if isinstance(conn_or_url, str):
+        # oracle://user:pass@host:port/service  or  oracle://user:pass@host/service
+        from urllib.parse import urlparse
+        p = urlparse(conn_or_url)
+        dsn = oracledb.makedsn(
+            p.hostname or "localhost",
+            p.port or 1521,
+            service_name=p.path.lstrip("/"),
+        )
+        conn = oracledb.connect(user=p.username, password=p.password or "", dsn=dsn)
+        close_after = True
+    else:
+        conn = conn_or_url
+
+    schema: dict = {}
+    cur = conn.cursor()
+
+    # Tables + columns (current user's tables only)
+    cur.execute("""
+        SELECT
+            t.TABLE_NAME,
+            c.COLUMN_NAME,
+            c.DATA_TYPE,
+            c.DATA_LENGTH,
+            c.DATA_PRECISION,
+            c.DATA_SCALE,
+            c.NULLABLE,
+            c.DATA_DEFAULT,
+            c.COLUMN_ID
+        FROM USER_TABLES t
+        JOIN USER_TAB_COLUMNS c ON t.TABLE_NAME = c.TABLE_NAME
+        ORDER BY t.TABLE_NAME, c.COLUMN_ID
+    """)
+
+    for row in cur.fetchall():
+        table = row[0]
+        if table not in schema:
+            schema[table] = {"columns": {}, "indexes": {}}
+
+        col_type = row[2]
+        if row[3] and col_type in ("VARCHAR2", "CHAR", "NVARCHAR2", "NCHAR"):
+            col_type = f"{col_type}({row[3]})"
+        elif row[4] is not None and row[5] is not None:
+            col_type = f"{col_type}({row[4]},{row[5]})"
+
+        schema[table]["columns"][row[1]] = {
+            "type": col_type,
+            "nullable": row[6] == "Y",
+            "default": str(row[7]).strip() if row[7] else None,
+        }
+
+    # Indexes
+    cur.execute("""
+        SELECT
+            i.TABLE_NAME,
+            i.INDEX_NAME,
+            i.UNIQUENESS,
+            c.COLUMN_NAME,
+            c.COLUMN_POSITION
+        FROM USER_INDEXES i
+        JOIN USER_IND_COLUMNS c ON i.INDEX_NAME = c.INDEX_NAME
+        ORDER BY i.TABLE_NAME, i.INDEX_NAME, c.COLUMN_POSITION
+    """)
+
+    for row in cur.fetchall():
+        table = row[0]
+        idx = row[1]
+        if table not in schema:
+            continue
+        if idx not in schema[table]["indexes"]:
+            schema[table]["indexes"][idx] = {
+                "columns": [],
+                "unique": row[2] == "UNIQUE",
+                "primary": idx.endswith("_PK") or idx.startswith("SYS_C"),
+            }
+        schema[table]["indexes"][idx]["columns"].append(row[3])
+
+    cur.close()
+    if close_after:
+        conn.close()
+
+    return schema
+
+
+# Extend detection and extraction to include Oracle
+
+_detect_type_v4_prev = SchemaDrift._detect_type
+_extract_v4_prev = SchemaDrift._extract
+
+
+def _detect_type_v5(self, conn: Any, hint: str) -> str:
+    if hint != "auto":
+        return hint
+    if isinstance(conn, str) and (
+        conn.startswith("oracle://") or conn.startswith("oracle+")
+    ):
+        return "oracle"
+    if HAS_ORACLE and isinstance(conn, oracledb.Connection):
+        return "oracle"
+    return _detect_type_v4_prev(self, conn, hint)
+
+
+def _extract_v5(self) -> dict:
+    if self._db_type == "oracle":
+        return _extract_oracle(self._connection)
+    return _extract_v4_prev(self)
+
+
+SchemaDrift._detect_type = _detect_type_v5
+SchemaDrift._extract = _extract_v5

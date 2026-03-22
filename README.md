@@ -314,3 +314,19 @@ Requires:
 ```bash
 pip install "schema-drift[mysql]"  # works for both MySQL and MariaDB
 ```
+
+---
+
+## Oracle support
+
+```python
+from schema_drift import SchemaDrift
+
+drift = SchemaDrift("oracle://user:pass@localhost/ORCL")
+drift.snapshot("initial schema")
+```
+
+Requires:
+```bash
+pip install "schema-drift[oracle]"
+```
