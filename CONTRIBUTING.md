@@ -30,7 +30,7 @@ schema_drift/
   diff.py         # diff engine and pretty printer
   watch.py        # real-time monitoring
   export.py       # JSON / CSV / SQL export
-  QUICKSTART.md
+  QUICKSTART.md (root)
   BACKENDS.md
   INTEGRATIONS.md
   WATCH.md

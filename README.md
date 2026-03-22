@@ -56,7 +56,7 @@ drift.log()
 drift.diff()
 ```
 
-See [QUICKSTART.md](schema_drift/QUICKSTART.md) for more examples.
+See [QUICKSTART.md](QUICKSTART.md) for more examples.
 
 ---
 
@@ -90,7 +90,7 @@ drift.watch(
 )
 ```
 
-See [WATCH.md](schema_drift/WATCH.md).
+See [WATCH.md](WATCH.md).
 
 ---
 
@@ -102,7 +102,7 @@ print(drift.export_csv())
 print(drift.export_sql(dialect="postgres"))
 ```
 
-See [EXPORT.md](schema_drift/EXPORT.md).
+See [EXPORT.md](EXPORT.md).
 
 ---
 
@@ -112,7 +112,7 @@ See [EXPORT.md](schema_drift/EXPORT.md).
 - **Django** — auto-snapshot after `manage.py migrate`
 - **Slack** — notifications for schema changes
 
-See [INTEGRATIONS.md](schema_drift/INTEGRATIONS.md).
+See [INTEGRATIONS.md](INTEGRATIONS.md).
 
 ---
 
@@ -126,7 +126,7 @@ Open `http://127.0.0.1:8080` to browse snapshot history in your browser.
 
 ![web ui](assets/web-ui.png)
 
-See [WEB-UI.md](schema_drift/WEB-UI.md).
+See [WEB-UI.md](WEB-UI.md).
 
 ---
 
