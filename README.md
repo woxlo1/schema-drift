@@ -13,104 +13,126 @@ Migration tools run SQL. `schema-drift` remembers the story.
 ## Install
 
 ```bash
-# From GitHub
 pip install git+https://github.com/woxlo1/schema-drift.git
 
 # With PostgreSQL support
 pip install "schema-drift[postgres] @ git+https://github.com/woxlo1/schema-drift.git"
 
-# With MySQL support
+# With MySQL / MariaDB support
 pip install "schema-drift[mysql] @ git+https://github.com/woxlo1/schema-drift.git"
+
+# With Oracle support
+pip install "schema-drift[oracle] @ git+https://github.com/woxlo1/schema-drift.git"
 ```
+
+---
+
+## Supported databases
+
+| database | install |
+| -------- | ------- |
+| SQLite | built-in |
+| PostgreSQL | `pip install "schema-drift[postgres]"` |
+| MySQL | `pip install "schema-drift[mysql]"` |
+| MariaDB | `pip install "schema-drift[mysql]"` |
+| Oracle | `pip install "schema-drift[oracle]"` |
+| OpenAPI 3.x | built-in (`pip install pyyaml` for YAML) |
+| JSON Schema | built-in |
+
+---
+
+## Quickstart
+
+```python
+from schema_drift import SchemaDrift
+
+drift = SchemaDrift("mydb.sqlite")
+drift.snapshot("initial schema")
+
+# After ALTER TABLE...
+drift.snapshot("add users.email")
+
+drift.log()
+drift.diff()
+```
+
+See [QUICKSTART.md](schema_drift/QUICKSTART.md) for more examples.
 
 ---
 
 ## CLI
 
 ```bash
-# Take a snapshot
 schema-drift --db ./mydb.sqlite snapshot "initial schema"
-
-# After an ALTER TABLE...
-schema-drift --db ./mydb.sqlite snapshot "add users.email"
-
-# View history
 schema-drift --db ./mydb.sqlite log
-
-# Show what changed between last two snapshots
 schema-drift --db ./mydb.sqlite diff
-
-# Inspect schema at a given snapshot
-schema-drift --db ./mydb.sqlite rollback 0
+schema-drift --db ./mydb.sqlite watch --interval 30
+schema-drift --db ./mydb.sqlite export --format sql
+schema-drift web
 ```
 
-Set `SCHEMA_DRIFT_DB` to avoid repeating `--db` every time:
+Set `SCHEMA_DRIFT_DB` to avoid repeating `--db`:
 
 ```bash
 export SCHEMA_DRIFT_DB=postgresql://user:pass@localhost/mydb
 schema-drift snapshot "initial schema"
-schema-drift log
 ```
 
 ---
 
-## Python API
+## Watch for changes
 
 ```python
-from schema_drift import SchemaDrift
-
-# SQLite
-drift = SchemaDrift("mydb.sqlite")
-
-# PostgreSQL
-drift = SchemaDrift("postgresql://user:pass@localhost/mydb")
-
-# Or pass an existing connection
-import sqlite3
-conn = sqlite3.connect("mydb.sqlite")
-drift = SchemaDrift(conn)
+drift.watch(
+    interval=60,
+    on_change=lambda diff: print("changed!", diff),
+    on_breaking=lambda diff: print("BREAKING!", diff),
+)
 ```
 
-### Take a snapshot
+See [WATCH.md](schema_drift/WATCH.md).
+
+---
+
+## Export
 
 ```python
-drift.snapshot("initial schema")
+print(drift.export_json())
+print(drift.export_csv())
+print(drift.export_sql(dialect="postgres"))
 ```
 
-### See what changed
+See [EXPORT.md](schema_drift/EXPORT.md).
 
-```python
-# After an ALTER TABLE...
-drift.snapshot("added users.email for auth feature #42")
+---
 
-# Output:
-# + users.email  (TEXT)
+## Integrations
+
+- **Alembic** — auto-snapshot after migrations
+- **Django** — auto-snapshot after `manage.py migrate`
+- **Slack** — notifications for schema changes
+
+See [INTEGRATIONS.md](schema_drift/INTEGRATIONS.md).
+
+---
+
+## Web UI
+
+```bash
+schema-drift web
 ```
 
-### View history
+Open `http://127.0.0.1:8080` to browse snapshot history in your browser.
 
-```python
-drift.log()
+See [WEB-UI.md](schema_drift/WEB-UI.md).
 
-# date         id             tables   cols  message
-# ─────────────────────────────────────────────────────────────
-# 2024-03-01   a3f9b2c1d4e5      8      42  initial schema
-# 2024-03-15   b71cd4f2a3b1      8      43  added users.email for auth feature #42
-```
+---
 
-### Diff two snapshots
+## GitHub Actions
 
-```python
-drift.diff()        # last two snapshots
-drift.diff(-3, -1)  # between any two
-```
+Automatically comment schema diffs on PRs and fail CI on breaking changes.
 
-### Inspect an old schema
-
-```python
-old = drift.rollback(0)   # schema at first snapshot
-old["users"]["columns"]   # {"id": ..., "name": ..., "age": ...}
-```
+See [.github/workflows/schema-drift.yml](.github/workflows/schema-drift.yml).
 
 ---
 
@@ -120,22 +142,24 @@ Git tracks your migration *files*. `schema-drift` tracks the actual **state of y
 
 ## Why not Alembic / Flyway?
 
-Those tools *apply* migrations. `schema-drift` *observes and records* schema state. They work great together — run `drift.snapshot()` after each migration to build a human-readable audit trail.
+Those tools *apply* migrations. `schema-drift` *observes and records* schema state. They work great together.
 
 ---
 
 ## Roadmap
 
 - [x] v0.1 — SQLite + PostgreSQL, snapshot / diff / log / rollback
-- [x] v0.2 — CLI (`schema-drift snapshot/log/diff/rollback`)
-- [x] v0.3 — GitHub Actions integration (auto-comment schema diffs on PRs)
+- [x] v0.2 — CLI
+- [x] v0.3 — GitHub Actions integration
 - [x] v1.0 — OpenAPI / JSON Schema support
+- [x] v1.1 — MySQL, MariaDB, Oracle support + drift.watch()
+- [x] v2.0 — Modular backends, integrations, Web UI, export
 
 ---
 
 ## Contributing
 
-PRs welcome!
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 git clone https://github.com/woxlo1/schema-drift
@@ -147,221 +171,3 @@ pytest
 ## License
 
 MIT
-
----
-
-## GitHub Actions
-
-Automatically comment schema diffs on PRs and fail CI on breaking changes.
-
-### Setup
-
-1. Add your DB connection string as a repository secret named `SCHEMA_DRIFT_DB`
-2. Create `.github/workflows/schema-drift.yml`:
-
-```yaml
-name: Schema Drift
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  schema-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install schema-drift
-        run: pip install schema-drift
-
-      - name: Run schema drift check
-        id: drift
-        env:
-          SCHEMA_DRIFT_DB: ${{ secrets.SCHEMA_DRIFT_DB }}
-        run: |
-          python -m schema_drift.ci \
-            --base-ref ${{ github.event.pull_request.base.sha }} \
-            --head-ref ${{ github.event.pull_request.head.sha }} \
-            --output-file drift-report.md
-
-      - name: Comment on PR
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (!fs.existsSync('drift-report.md')) return;
-            const body = fs.readFileSync('drift-report.md', 'utf8');
-            if (!body.trim()) return;
-            const marker = '<!-- schema-drift-report -->';
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.issue.number, body,
-              });
-            }
-
-      - name: Fail on breaking changes
-        if: steps.drift.outputs.breaking == 'true'
-        run: exit 1
-```
-
-### What it does
-
-| event | action |
-| ----- | ------ |
-| column / table added | ✅ posts comment, CI passes |
-| column / table dropped | ❌ posts comment, **CI fails** |
-| column type changed | ⚠️ posts comment, **CI fails** |
-| no schema change | silent, CI passes |
-
----
-
-## OpenAPI & JSON Schema support
-
-`schema-drift` also tracks API schema changes — not just databases.
-
-### OpenAPI 3.x
-
-```python
-from schema_drift import SchemaDrift
-
-# From a file
-drift = SchemaDrift("openapi.json")
-drift.snapshot("initial API")
-
-# Or pass a dict directly
-import yaml
-with open("openapi.yaml") as f:
-    spec = yaml.safe_load(f)
-drift = SchemaDrift(spec)
-drift.snapshot("initial API")
-
-# After updating the spec...
-drift.snapshot("add /users/{id}/posts endpoint")
-drift.diff()
-
-# Output:
-# + GET /users/{id}/posts
-# + POST /users/{id}/posts
-```
-
-YAML support requires PyYAML:
-```bash
-pip install pyyaml
-```
-
-### JSON Schema
-
-```python
-drift = SchemaDrift("schema.json")
-drift.snapshot("initial schema")
-
-# After adding a field...
-drift.snapshot("add tags field")
-drift.diff()
-
-# Output:
-# + Product.tags  (array<string>)
-```
-
-### What counts as a breaking change
-
-| change | verdict |
-| ------ | ------- |
-| endpoint added | ✅ safe |
-| field / property added | ✅ safe |
-| endpoint removed | ❌ breaking |
-| field / property removed | ❌ breaking |
-| parameter type changed | ⚠️ breaking |
-
----
-
-## MySQL / MariaDB support
-
-```python
-from schema_drift import SchemaDrift
-
-drift = SchemaDrift("mysql://user:pass@localhost/mydb")
-
-# MariaDB
-drift = SchemaDrift("mariadb://user:pass@localhost/mydb")
-drift.snapshot("initial schema")
-```
-
-Requires:
-```bash
-pip install "schema-drift[mysql]"  # works for both MySQL and MariaDB
-```
-
----
-
-## Oracle support
-
-```python
-from schema_drift import SchemaDrift
-
-drift = SchemaDrift("oracle://user:pass@localhost/ORCL")
-drift.snapshot("initial schema")
-```
-
-Requires:
-```bash
-pip install "schema-drift[oracle]"
-```
-
----
-
-## Watching for changes
-
-Poll the database for schema changes and get notified automatically:
-
-```python
-from schema_drift import SchemaDrift
-
-drift = SchemaDrift("postgresql://user:pass@localhost/mydb")
-
-def on_change(diff):
-    print("Schema changed!", diff)
-
-def on_breaking(diff):
-    print("BREAKING CHANGE!", diff)
-
-# Poll every 60 seconds (default)
-drift.watch(
-    interval=60,
-    on_change=on_change,
-    on_breaking=on_breaking,
-)
-```
-
-Or from the CLI:
-
-```bash
-schema-drift --db ./mydb.sqlite watch
-schema-drift --db ./mydb.sqlite watch --interval 30
-schema-drift --db ./mydb.sqlite watch --no-snapshot
-```
-
-Press Ctrl+C to stop.

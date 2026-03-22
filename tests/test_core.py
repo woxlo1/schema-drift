@@ -128,7 +128,7 @@ def test_no_changes_empty_diff(db_and_drift):
     drift.snapshot("initial")
     diff = drift.snapshot("no change")
 
-    from schema_drift.core import _has_changes
+    from schema_drift.diff import has_changes as _has_changes
     assert not _has_changes(diff)
 
 
