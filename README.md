@@ -2,6 +2,8 @@
 
 > Track **why** your schema changed, not just what changed.
 
+![schema-drift](assets/banner.svg)
+
 `schema-drift` is a lightweight Python library that records your database schema over time — with messages, diffs, and history — like `git log` but for your tables.
 
 Migration tools run SQL. `schema-drift` remembers the story.
