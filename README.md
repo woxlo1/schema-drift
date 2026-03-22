@@ -13,13 +13,14 @@ Migration tools run SQL. `schema-drift` remembers the story.
 ## Install
 
 ```bash
-pip install schema-drift
+# From GitHub
+pip install git+https://github.com/woxlo1/schema-drift.git
 
-# PostgreSQL support
-pip install "schema-drift[postgres]"
+# With PostgreSQL support
+pip install "schema-drift[postgres] @ git+https://github.com/woxlo1/schema-drift.git"
 
-# MySQL support
-pip install "schema-drift[mysql]"
+# With MySQL support
+pip install "schema-drift[mysql] @ git+https://github.com/woxlo1/schema-drift.git"
 ```
 
 ---

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "schema-drift"
-version = "1.1.0"
+version = "1.1.2"
 description = "Track why your schema changed, not just what changed."
 readme = "README.md"
 license = { text = "MIT" }
