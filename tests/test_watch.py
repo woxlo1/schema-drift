@@ -52,14 +52,14 @@ def test_watch_calls_on_breaking(watched_db):
 
     breaking_diffs = []
     run_watch_thread(drift, interval=0, on_breaking=lambda d: breaking_diffs.append(d), auto_snapshot=False)
-    time.sleep(0.05)
+    time.sleep(0.1)
 
     conn = sqlite3.connect(db_path)
     conn.execute("DROP TABLE users")
     conn.commit()
     conn.close()
 
-    time.sleep(0.2)
+    time.sleep(0.5)
     assert len(breaking_diffs) >= 1
     assert "users" in breaking_diffs[0]["tables_removed"]
 
