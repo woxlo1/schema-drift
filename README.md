@@ -298,16 +298,19 @@ drift.diff()
 
 ---
 
-## MySQL support
+## MySQL / MariaDB support
 
 ```python
 from schema_drift import SchemaDrift
 
 drift = SchemaDrift("mysql://user:pass@localhost/mydb")
+
+# MariaDB
+drift = SchemaDrift("mariadb://user:pass@localhost/mydb")
 drift.snapshot("initial schema")
 ```
 
 Requires:
 ```bash
-pip install "schema-drift[mysql]"
+pip install "schema-drift[mysql]"  # works for both MySQL and MariaDB
 ```

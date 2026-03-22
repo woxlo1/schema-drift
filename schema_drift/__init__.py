@@ -1,4 +1,4 @@
 from .core import SchemaDrift
 
 __all__ = ["SchemaDrift"]
-__version__ = "0.1.0"
+__version__ = "1.1.3"

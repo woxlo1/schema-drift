@@ -560,3 +560,35 @@ def _extract_v3(self) -> dict:
 
 SchemaDrift._detect_type = _detect_type_v3
 SchemaDrift._extract = _extract_v3
+
+# ── MariaDB support ────────────────────────────────────────────────────────────
+# MariaDB is wire-compatible with MySQL — same extractor, just different URL scheme.
+
+_detect_type_v3_prev = SchemaDrift._detect_type
+_extract_v3_prev = SchemaDrift._extract
+
+
+def _detect_type_v4(self, conn: Any, hint: str) -> str:
+    if hint != "auto":
+        return hint
+    if isinstance(conn, str) and (
+        conn.startswith("mariadb://") or conn.startswith("mariadb+")
+    ):
+        return "mariadb"
+    return _detect_type_v3_prev(self, conn, hint)
+
+
+def _extract_v4(self) -> dict:
+    if self._db_type == "mariadb":
+        # Reuse MySQL extractor — MariaDB is wire-compatible
+        conn_or_url = self._connection
+        if isinstance(conn_or_url, str):
+            # Rewrite mariadb:// → mysql:// for connector
+            conn_or_url = conn_or_url.replace("mariadb://", "mysql://", 1)
+            conn_or_url = conn_or_url.replace("mariadb+", "mysql+", 1)
+        return _extract_mysql(conn_or_url)
+    return _extract_v3_prev(self)
+
+
+SchemaDrift._detect_type = _detect_type_v4
+SchemaDrift._extract = _extract_v4
