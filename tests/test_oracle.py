@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 from schema_drift import SchemaDrift
 from schema_drift.backends import get_backend
+oracledb = pytest.importorskip("oracledb", reason="oracledb not installed")
 from schema_drift.backends.oracle import OracleBackend
 
 COLUMNS_ROWS = [
