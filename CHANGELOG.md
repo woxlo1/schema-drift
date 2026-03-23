@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.1
+
+- Fixed pip install references to use git URL throughout
+
+---
+
 ## v2.1.0
 
 ### New features

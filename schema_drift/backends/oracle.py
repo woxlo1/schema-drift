@@ -24,7 +24,7 @@ class OracleBackend(BaseBackend):
 
     def extract(self) -> dict:
         if not HAS_ORACLE:
-            raise ImportError("oracledb is required: pip install schema-drift[oracle]")
+            raise ImportError("oracledb is required: pip install schema-drift[oracle] @ git+https://github.com/woxlo1/schema-drift.git")
 
         if isinstance(self._conn, str):
             from urllib.parse import urlparse

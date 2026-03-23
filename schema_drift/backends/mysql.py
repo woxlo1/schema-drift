@@ -24,7 +24,7 @@ class MySQLBackend(BaseBackend):
 
     def extract(self) -> dict:
         if not HAS_MYSQL:
-            raise ImportError("mysql-connector-python is required: pip install schema-drift[mysql]")
+            raise ImportError("mysql-connector-python is required: pip install schema-drift[mysql] @ git+https://github.com/woxlo1/schema-drift.git")
 
         if isinstance(self._conn, str):
             from urllib.parse import urlparse

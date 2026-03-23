@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install schema-drift
-        run: pip install schema-drift
+        run: pip install "schema-drift @ git+https://github.com/woxlo1/schema-drift.git"
 
       - name: Run schema drift check
         id: drift

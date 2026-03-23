@@ -25,7 +25,7 @@ class PostgreSQLBackend(BaseBackend):
 
     def extract(self) -> dict:
         if not HAS_PSYCOPG2:
-            raise ImportError("psycopg2 is required: pip install schema-drift[postgres]")
+            raise ImportError("psycopg2 is required: pip install schema-drift[postgres] @ git+https://github.com/woxlo1/schema-drift.git")
 
         if isinstance(self._conn, str):
             conn = psycopg2.connect(self._conn)
