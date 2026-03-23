@@ -57,3 +57,48 @@ drift.watch(on_change=notifier)
 | table / column added | ✅ green |
 | table / column dropped | ❌ red |
 | column type changed | ⚠️ yellow |
+
+---
+
+## Team features
+
+Track approvals and annotations on schema snapshots.
+
+```python
+from schema_drift.integrations.team import approve, annotate, audit_log, pending_approvals, require_approval
+
+drift = SchemaDrift("postgresql://localhost/mydb")
+
+# Approve latest snapshot
+approve(drift, approver="alice", note="reviewed in standup")
+
+# Approve specific snapshot by index
+approve(drift, snapshot_index=2, approver="bob")
+
+# Add an annotation
+annotate(drift, note="related to PROJ-123", author="alice")
+
+# Print full audit trail
+audit_log(drift)
+
+# Check for unapproved changes (useful in CI)
+if require_approval(drift):
+    print("Schema changes need approval!")
+    exit(1)
+```
+
+### Slack — advanced usage
+
+```python
+from schema_drift.integrations.slack import SlackNotifier
+
+notifier = SlackNotifier(
+    webhook_url="https://hooks.slack.com/services/...",
+    mention_on_breaking="@channel",
+)
+
+drift.watch(
+    on_change=notifier.on_change,
+    on_breaking=notifier.on_breaking,
+)
+```

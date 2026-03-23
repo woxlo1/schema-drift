@@ -6,6 +6,7 @@ import time
 import pytest
 from schema_drift import SchemaDrift
 
+
 @pytest.fixture
 def watched_db(tmp_path):
     db = tmp_path / "watch.db"

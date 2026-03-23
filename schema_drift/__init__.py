@@ -12,4 +12,4 @@ __all__ = [
     "to_csv",
     "to_sql",
 ]
-__version__ = "2.0.4"
+__version__ = "2.1.0"

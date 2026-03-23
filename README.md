@@ -132,6 +132,32 @@ See [WEB-UI.md](WEB-UI.md).
 
 ---
 
+
+---
+
+## Team features
+
+Track who approved schema changes and add annotations.
+
+```python
+from schema_drift.integrations.team import approve, annotate, audit_log, require_approval
+
+# Approve a schema change
+approve(drift, approver="alice", note="reviewed in standup")
+
+# Add a note
+annotate(drift, note="related to PROJ-123", author="alice")
+
+# Print full audit trail
+audit_log(drift)
+
+# Use as CI gate — fails if unapproved changes exist
+if require_approval(drift):
+    exit(1)
+```
+
+See [INTEGRATIONS.md](INTEGRATIONS.md).
+
 ## GitHub Actions
 
 Automatically comment schema diffs on PRs and fail CI on breaking changes.

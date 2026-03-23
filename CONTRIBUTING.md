@@ -21,8 +21,8 @@ pytest tests/ -v
 
 ```
 schema_drift/
-  backends/       # database extractors (SQLite, PostgreSQL, MySQL, etc.)
-  integrations/   # third-party integrations (Alembic, Django, Slack)
+  backends/       # database extractors (SQLite, PostgreSQL, MySQL, MariaDB, Oracle, OpenAPI, JSON Schema)
+  integrations/   # third-party integrations (Alembic, Django, Slack, Team)
   web/            # built-in web UI
   core.py         # SchemaDrift main class
   cli.py          # CLI entrypoint
@@ -30,7 +30,7 @@ schema_drift/
   diff.py         # diff engine and pretty printer
   watch.py        # real-time monitoring
   export.py       # JSON / CSV / SQL export
-  QUICKSTART.md (root)
+  QUICKSTART.md
   BACKENDS.md
   INTEGRATIONS.md
   WATCH.md
@@ -38,6 +38,9 @@ schema_drift/
   EXPORT.md
 examples/         # runnable examples
 tests/            # test suite
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
 ```
 
 ## Adding a new backend
@@ -46,7 +49,14 @@ tests/            # test suite
 2. Subclass `BaseBackend` and implement `extract()` and `accepts()`
 3. Register it in `schema_drift/backends/__init__.py`
 4. Add tests in `tests/test_yourdb.py`
-5. Add docs in `schema_drift/BACKENDS.md`
+5. Update `BACKENDS.md`
+
+## Adding a new integration
+
+1. Create `schema_drift/integrations/yourservice.py`
+2. Export from `schema_drift/integrations/__init__.py`
+3. Add tests in `tests/test_integrations.py`
+4. Update `INTEGRATIONS.md`
 
 ## Pull requests
 

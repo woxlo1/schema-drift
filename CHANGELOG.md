@@ -1,6 +1,40 @@
 # Changelog
 
-## v2.0.0 (unreleased)
+## v2.1.0
+
+### New features
+- `integrations/team.py` — `approve()`, `annotate()`, `audit_log()`, `require_approval()`
+- `integrations/slack.py` — `SlackNotifier` class with `mention_on_breaking` support
+- `integrations/alembic.py` — `listener()` for SQLAlchemy event hook
+- `integrations/django.py` — `register_pre_migrate()` for before/after comparison
+
+---
+
+## v2.0.6
+
+- Fixed flaky watch tests in CI using `threading.Event`
+
+## v2.0.5
+
+- Added banner to README
+
+## v2.0.4
+
+- Moved docs (QUICKSTART.md, BACKENDS.md, etc.) to repository root
+
+## v2.0.3
+
+- Added web UI screenshot to README
+
+## v2.0.2
+
+- Fixed watch test timing in CI
+
+## v2.0.1
+
+- Fixed oracle tests skipped when oracledb not installed in CI
+
+## v2.0.0
 
 ### Breaking changes
 - Internals refactored: `core.py` now delegates to `backends/` — existing `SchemaDrift` API unchanged
@@ -14,6 +48,9 @@
 - `export.py` — export to JSON, CSV, SQL (`schema-drift export`)
 - `diff.py` — diff engine extracted as standalone module
 - `watch.py` — watch module extracted as standalone module
+- QUICKSTART.md, BACKENDS.md, INTEGRATIONS.md, WATCH.md, WEB-UI.md, EXPORT.md
+- CONTRIBUTING.md, CHANGELOG.md
+- examples/
 
 ---
 

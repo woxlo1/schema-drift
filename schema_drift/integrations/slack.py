@@ -1,4 +1,30 @@
-"""schema_drift.integrations.slack — Slack notifications for schema changes"""
+"""
+schema_drift.integrations.slack
+
+Slack notifications for schema changes.
+
+Usage::
+
+    from schema_drift.integrations.slack import notify, make_notifier, SlackNotifier
+
+    # Simple one-off notification
+    diff = drift.snapshot("add users.email")
+    notify("https://hooks.slack.com/services/...", diff)
+
+    # Use as watch callback
+    notifier = make_notifier("https://hooks.slack.com/services/...")
+    drift.watch(on_change=notifier)
+
+    # Advanced: full control with SlackNotifier
+    notifier = SlackNotifier(
+        webhook_url="https://hooks.slack.com/services/...",
+        channel="#db-changes",
+        username="schema-drift",
+        only_breaking=False,
+        mention_on_breaking="@channel",
+    )
+    drift.watch(on_change=notifier.on_change, on_breaking=notifier.on_breaking)
+"""
 from __future__ import annotations
 import json
 import urllib.request
@@ -7,8 +33,7 @@ from typing import Any
 from ..diff import has_changes, is_breaking
 
 
-def _build_message(diff: dict, title: str = "Schema drift detected") -> dict:
-    """Build a Slack Block Kit message from a diff."""
+def _build_blocks(diff: dict, title: str, mention: str = "") -> dict:
     breaking = is_breaking(diff)
     emoji = "🚨" if breaking else "📋"
     color = "#E01E5A" if breaking else "#36C5F0"
@@ -24,34 +49,26 @@ def _build_message(diff: dict, title: str = "Schema drift detected") -> dict:
         lines.append(f"❌ column dropped: `{c['table']}.{c['column']}` (was {c['was'].get('type','')})")
     for c in diff.get("columns_modified", []):
         lines.append(f"⚠️ column changed: `{c['table']}.{c['column']}` {c['before'].get('type','')} → {c['after'].get('type','')}")
+    for i in diff.get("indexes_added", []):
+        lines.append(f"✅ index added: `{i['index']}` on `{i['table']}`")
+    for i in diff.get("indexes_removed", []):
+        lines.append(f"⚠️ index dropped: `{i['index']}` on `{i['table']}`")
 
     text = "\n".join(lines) or "No details available."
+    if mention:
+        text = f"{mention}\n{text}"
+
+    footer = "⚠️ Breaking changes detected" if breaking else "✅ No breaking changes"
 
     return {
-        "attachments": [
-            {
-                "color": color,
-                "blocks": [
-                    {
-                        "type": "header",
-                        "text": {"type": "plain_text", "text": f"{emoji} {title}"},
-                    },
-                    {
-                        "type": "section",
-                        "text": {"type": "mrkdwn", "text": text},
-                    },
-                    {
-                        "type": "context",
-                        "elements": [
-                            {
-                                "type": "mrkdwn",
-                                "text": f"{'⚠️ Breaking changes detected' if breaking else 'No breaking changes'} · schema-drift",
-                            }
-                        ],
-                    },
-                ],
-            }
-        ]
+        "attachments": [{
+            "color": color,
+            "blocks": [
+                {"type": "header", "text": {"type": "plain_text", "text": f"{emoji} {title}"}},
+                {"type": "section", "text": {"type": "mrkdwn", "text": text}},
+                {"type": "context", "elements": [{"type": "mrkdwn", "text": f"{footer} · schema-drift"}]},
+            ],
+        }]
     }
 
 
@@ -60,32 +77,28 @@ def notify(
     diff: dict,
     title: str = "Schema drift detected",
     only_breaking: bool = False,
+    mention_on_breaking: str = "",
 ) -> bool:
     """
     Send a Slack notification for a schema diff.
 
     Args:
-        webhook_url:   Slack incoming webhook URL.
-        diff:          Diff dict from drift.snapshot() or drift.diff().
-        title:         Notification title.
-        only_breaking: If True, only send notifications for breaking changes.
+        webhook_url:          Slack incoming webhook URL.
+        diff:                 Diff dict from drift.snapshot() or drift.diff().
+        title:                Notification title.
+        only_breaking:        Only notify on breaking changes.
+        mention_on_breaking:  Slack mention when breaking (e.g. "@channel", "@alice").
 
     Returns:
-        True if the notification was sent, False if skipped.
-
-    Usage::
-
-        from schema_drift.integrations.slack import notify
-
-        diff = drift.snapshot("add users.email")
-        notify("https://hooks.slack.com/services/...", diff)
+        True if notification was sent.
     """
     if not has_changes(diff):
         return False
     if only_breaking and not is_breaking(diff):
         return False
 
-    payload = _build_message(diff, title)
+    mention = mention_on_breaking if is_breaking(diff) else ""
+    payload = _build_blocks(diff, title, mention)
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         webhook_url,
@@ -101,16 +114,55 @@ def notify(
         return False
 
 
-def make_notifier(webhook_url: str, only_breaking: bool = False, title: str = "Schema drift detected"):
+def make_notifier(
+    webhook_url: str,
+    title: str = "Schema drift detected",
+    only_breaking: bool = False,
+    mention_on_breaking: str = "",
+):
+    """Return a callback for drift.watch(on_change=...)."""
+    def _notify(diff: dict) -> None:
+        notify(webhook_url, diff, title=title,
+               only_breaking=only_breaking,
+               mention_on_breaking=mention_on_breaking)
+    return _notify
+
+
+class SlackNotifier:
     """
-    Return a callback suitable for drift.watch(on_change=...).
+    Full-featured Slack notifier with separate on_change and on_breaking callbacks.
 
     Usage::
 
-        notifier = make_notifier("https://hooks.slack.com/services/...")
-        drift.watch(on_change=notifier)
+        notifier = SlackNotifier(
+            webhook_url="https://hooks.slack.com/services/...",
+            mention_on_breaking="@channel",
+        )
+        drift.watch(
+            on_change=notifier.on_change,
+            on_breaking=notifier.on_breaking,
+        )
     """
-    def _notify(diff: dict) -> None:
-        notify(webhook_url, diff, title=title, only_breaking=only_breaking)
 
-    return _notify
+    def __init__(
+        self,
+        webhook_url: str,
+        title: str = "Schema drift detected",
+        mention_on_breaking: str = "",
+    ):
+        self.webhook_url = webhook_url
+        self.title = title
+        self.mention_on_breaking = mention_on_breaking
+
+    def on_change(self, diff: dict) -> None:
+        """Call this from drift.watch(on_change=...)."""
+        if not is_breaking(diff):
+            notify(self.webhook_url, diff, title=self.title)
+
+    def on_breaking(self, diff: dict) -> None:
+        """Call this from drift.watch(on_breaking=...)."""
+        notify(
+            self.webhook_url, diff,
+            title=f"🚨 {self.title}",
+            mention_on_breaking=self.mention_on_breaking,
+        )
