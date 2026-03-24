@@ -201,3 +201,62 @@ pytest
 ## License
 
 MIT
+
+---
+
+## REST API
+
+Start a REST API server to query schema-drift over HTTP.
+
+```bash
+schema-drift --db ./mydb.sqlite api
+```
+
+Open `http://127.0.0.1:8000/docs` for the interactive API docs.
+
+Requires:
+```bash
+pip install "schema-drift[api] @ git+https://github.com/woxlo1/schema-drift.git"
+```
+
+| endpoint | description |
+| -------- | ----------- |
+| `GET /health` | health check |
+| `GET /snapshots` | list all snapshots |
+| `GET /snapshots/{index}` | get snapshot by index |
+| `POST /snapshots` | take a new snapshot |
+| `GET /diff` | diff between last two snapshots |
+| `GET /schema` | latest schema |
+
+---
+
+## Webhooks
+
+Send HTTP notifications when schema changes are detected.
+
+```python
+from schema_drift.integrations.webhook import make_notifier, WebhookNotifier
+
+# Simple
+notifier = make_notifier("https://your-service.com/webhook")
+drift.watch(on_change=notifier)
+
+# With HMAC-SHA256 signing
+notifier = WebhookNotifier(
+    url="https://your-service.com/webhook",
+    secret="my-secret",
+)
+drift.watch(on_change=notifier.on_change, on_breaking=notifier.on_breaking)
+```
+
+Payload example:
+```json
+{
+  "event": "schema.changed",
+  "timestamp": "2026-03-24T10:00:00Z",
+  "breaking": false,
+  "diff": {
+    "columns_added": [{"table": "users", "column": "email", "type": "TEXT"}]
+  }
+}
+```

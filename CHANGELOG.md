@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.2.0
+
+### New features
+- `schema_drift.api` — REST API with FastAPI (`GET /snapshots`, `POST /snapshots`, `GET /diff`, `GET /schema`)
+- `integrations/webhook.py` — HTTP webhook notifications with HMAC-SHA256 signing
+- CLI: `schema-drift api --port 8000`
+- `pip install schema-drift[api]` for FastAPI + uvicorn
+
+---
+
 ## v2.1.1
 
 - Fixed pip install references to use git URL throughout

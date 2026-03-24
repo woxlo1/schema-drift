@@ -62,6 +62,10 @@ def cmd_web(args):
     from .web import serve
     serve(storage_path=args.storage, host=args.host, port=args.port)
 
+def cmd_api(args):
+    from .api import serve
+    serve(storage_path=args.storage, db_url=_get_db(args.db) if args.db else "", host=args.host, port=args.port)
+
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -103,6 +107,11 @@ def build_parser():
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8080)
     p.set_defaults(func=cmd_web)
+
+    p = sub.add_parser("api", help="start REST API server")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_api)
 
     return parser
 
